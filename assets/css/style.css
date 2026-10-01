@@ -123,50 +123,42 @@ body {
 }
 
 /* Líneas doradas ambientales detrás de toda la web (no solo el hero). Fixed
-   como .bg-justice, así se ve en cada sección al hacer scroll. Un solo
-   transform+opacity en el <svg>, loop cerrado (0% === 100%, sin "alternate")
-   para que el movimiento nunca se sienta como un vaivén que frena y para. */
+   como .bg-justice, así se ve en cada sección al hacer scroll.
+   Cada grupo de líneas es su propio <svg> (elemento HTML), y la animación va
+   sobre ese <svg>, no sobre un <g> interno: un transform en un <g> obliga a
+   repintar todo el SVG en cada frame (y a recalcular el blur de los paneles
+   de vidrio encima), mientras que en el <svg> lo mueve el compositor sin
+   repintar ni rasterizar de nuevo, así que va fluido y nítido. Sin drift
+   global: solo el bamboleo vertical, con fases repartidas en JS. */
 .bg-paths {
   position: fixed;
   inset: 0;
   z-index: -1;
   pointer-events: none;
+  overflow: hidden;
   opacity: 0.55;
 }
-.bg-paths-svg {
+.bg-paths-layer {
+  position: absolute;
+  /* margen extra para que el bamboleo nunca deje ver el borde */
+  inset: -12px 0;
   width: 100%;
-  height: 100%;
-  animation: bg-paths-drift 22s linear infinite;
+  height: calc(100% + 24px);
+  max-width: none;
+  animation: bg-path-wave 4.4s ease-in-out infinite;
+  animation-delay: var(--wave-delay, 0s);
   will-change: transform;
 }
 .bg-path {
   fill: none;
   stroke: var(--color-gold);
 }
-@keyframes bg-paths-drift {
-  0%   { transform: translate3d(0, 0, 0); }
-  25%  { transform: translate3d(-3%, 2%, 0); }
-  50%  { transform: translate3d(-1%, 4%, 0); }
-  75%  { transform: translate3d(2.5%, 1.5%, 0); }
-  100% { transform: translate3d(0, 0, 0); }
-}
-/* Bamboleo vertical de la ola: agrupado en 6 <g> (no 36 <path> sueltos) para
-   no crear 36 capas compuestas independientes detrás de todo el
-   backdrop-filter del sitio, que es lo que causaba el lag en scroll. Cada
-   grupo arranca con una fase distinta vía --wave-delay negativo (seteado en
-   JS), así se sigue viendo como una ola viajando por el abanico. */
-.bg-wave-group {
-  animation: bg-path-wave 4.4s var(--ease-in-out) infinite;
-  animation-delay: var(--wave-delay, 0s);
-  will-change: transform;
-}
 @keyframes bg-path-wave {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(7px); }
+  0%, 100% { transform: translate3d(0, 0, 0); }
+  50% { transform: translate3d(0, 7px, 0); }
 }
 @media (prefers-reduced-motion: reduce) {
-  .bg-paths-svg { animation: none; }
-  .bg-wave-group { animation: none; }
+  .bg-paths-layer { animation: none; }
 }
 
 /* ---------- Utilidades ---------- */
