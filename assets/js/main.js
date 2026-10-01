@@ -258,27 +258,31 @@
   }
 
   function renderBgPaths() {
-    var svg = document.getElementById("bg-paths-svg");
-    if (!svg) return;
+    var host = document.getElementById("bg-paths");
+    if (!host) return;
     var SVG_NS = "http://www.w3.org/2000/svg";
     var frag = document.createDocumentFragment();
-    // Mobile GPUs choke faster on many composited layers sitting behind
-    // backdrop-filter blur, so on narrow screens skip the wave grouping
-    // (only the single cheap svg-level drift remains) and draw half the
-    // lines (same fan shape, every other index) instead of all 36.
+    // Each group of lines is its own <svg> so the wave animation runs on the
+    // compositor (see .bg-paths-layer in style.css). On narrow screens draw
+    // half the lines (same fan shape, every other index) in 3 layers instead
+    // of 6, to keep the number of composited layers low on mobile GPUs.
     var isNarrow = window.matchMedia("(max-width: 720px)").matches;
     var step = isNarrow ? 2 : 1;
-    var count = Math.ceil(36 / step);
     var GROUP_SIZE = 6;
-    var group = null;
+    var layerCount = Math.ceil(36 / step / GROUP_SIZE);
+    var layer = null;
     var n = 0;
 
     for (var i = 0; i < 36; i += step) {
-      if (!isNarrow && n % GROUP_SIZE === 0) {
-        group = document.createElementNS(SVG_NS, "g");
-        group.setAttribute("class", "bg-wave-group");
-        group.style.setProperty("--wave-delay", "-" + ((n / count) * 4.4).toFixed(2) + "s");
-        frag.appendChild(group);
+      if (n % GROUP_SIZE === 0) {
+        var layerIndex = n / GROUP_SIZE;
+        layer = document.createElementNS(SVG_NS, "svg");
+        layer.setAttribute("class", "bg-paths-layer");
+        layer.setAttribute("viewBox", "0 0 696 316");
+        layer.setAttribute("preserveAspectRatio", "xMidYMid slice");
+        layer.setAttribute("fill", "none");
+        layer.style.setProperty("--wave-delay", "-" + ((layerIndex / layerCount) * 4.4).toFixed(2) + "s");
+        frag.appendChild(layer);
       }
 
       var d = "M-" + (380 + i * 5) + " -" + (189 + i * 6) +
@@ -292,12 +296,27 @@
       var path = document.createElementNS(SVG_NS, "path");
       path.setAttribute("d", d);
       path.setAttribute("class", "bg-path");
-      path.setAttribute("stroke-width", (0.5 + i * 0.03).toFixed(2));
+      // Min 0.7 user units (~1.5px on screen once the viewBox is scaled up),
+      // thinner hairlines alias and look pixelated.
+      path.setAttribute("stroke-width", (0.7 + i * 0.025).toFixed(2));
       path.setAttribute("stroke-opacity", (0.1 + i * 0.03).toFixed(2));
-      (isNarrow ? frag : group).appendChild(path);
+      layer.appendChild(path);
       n++;
     }
-    svg.appendChild(frag);
+    host.appendChild(frag);
+  }
+
+  // On reload, browsers restore the old scroll position (or the #hash
+  // anchor) after the page has already painted at the top, so it visibly
+  // jumps. Always open a reload on the first screen instead (scroll
+  // restoration itself is turned off in an inline <head> script); a fresh
+  // visit to a link with a #hash still goes to that section.
+  function startAtTopOnReload() {
+    var nav = window.performance && performance.getEntriesByType &&
+      performance.getEntriesByType("navigation")[0];
+    if (!nav || nav.type !== "reload") return;
+    if (location.hash) history.replaceState(null, "", location.pathname + location.search);
+    window.scrollTo({ top: 0, left: 0, behavior: "instant" });
   }
 
   function setupHeroParallax() {
@@ -317,6 +336,8 @@
       statue.style.transform = "";
     });
   }
+
+  startAtTopOnReload();
 
   document.title = c.meta.title;
   var metaDesc = document.querySelector('meta[name="description"]');
