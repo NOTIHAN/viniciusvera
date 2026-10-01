@@ -3,6 +3,8 @@
  * Cambia textos, servicios o el número de WhatsApp aquí; index.html los renderiza automáticamente.
  */
 const SITE_CONTENT = {
+  // Si cambias el título o la descripción, actualiza también las etiquetas og: y twitter:
+  // en index.html: WhatsApp y las redes leen el HTML sin ejecutar este archivo.
   meta: {
     title: "Vinicius Vera | Abogado Civilista en Cochabamba, Bolivia",
     description:
